@@ -4,7 +4,7 @@ A real-time dashboard that visualizes risk by trading strategy. Your real-time p
 
 ### IBKR API Integration:
 
-The project integrates with the IBKR API to fetch real-time stock data. Ensure that you have the required subscription permissions (a Professional account with real-time stream permissions in the assets you trade) set up. The IBKR workstation or Gateway must be running, with the relevant port open.
+The project integrates with the IBKR API to fetch real-time stock data. Ensure that you have the required subscription permissions (a Professional account with real-time stream permissions in the assets you trade) set up. The IBKR Workstation or Gateway must be running, with the relevant port open.
 
 ### Containerization with Docker:
 
