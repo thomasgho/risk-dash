@@ -1,0 +1,19 @@
+version: '3'
+services:
+  jupyter_lab:
+    image: ghorbanian/risk-dash
+    network_mode: "host"
+    user: root
+    container_name: ghorbanian_risk_dash
+    ports:
+      - '8890:8888'
+      - '7497:7497'
+    volumes:
+      - ../.:/home/user/work
+    environment:
+      - NB_UID=1000
+      - NB_GID=1000
+      - GRANT_SUDO=yes
+    entrypoint: /usr/local/bin/entrypoint.sh
+    command: jupyter lab --ip=0.0.0.0 --port=8888 --allow-root --LabApp.token='tamago'
+
