@@ -11,7 +11,7 @@ STRATEGY_OPTIONS = ['Run-up', 'Hedge', 'Hold', 'Medium', 'Long']
 class Portfolio:
     """
     A class to manage a portfolio of stocks, each with a corresponding 
-    weight and strategy.
+    weight, strategy and historical prices.
     """
 
     def __init__(self):
@@ -93,6 +93,8 @@ class Portfolio:
         not exist and will save the strategy data in a file named 
         'strategy.json' within the cache directory.
         """
+        self.last_saved_time = datetime.now()
+        
         cache_data = {
             'portfolio': self.portfolio,
             'last_saved_time': self.last_saved_time.strftime('%Y-%m-%d %H:%M:%S')
@@ -102,7 +104,6 @@ class Portfolio:
             os.makedirs('cache')
         with open('cache/strategy.json', 'w') as f:
             json.dump(cache_data, f)
-        self.last_saved_time = datetime.now()
 
     def load_cache(self):
         """
@@ -266,7 +267,10 @@ def update_portfolio(portfolio, holdings, historical_data):
                     weight = holdings[ticker]
                     portfolio.add_stock(ticker, weight, strategy)
                     st.success(f"Strategy for {ticker} has been successfully submitted.")
-                    
+                
+                # Save the strategies to cache
+                portfolio.save_cache()                    
+                
                 # Remove the prompt from the screen once strategies have been submitted
                 placeholder.empty()            
 

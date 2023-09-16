@@ -45,9 +45,6 @@ if __name__ == '__main__':
         if live_holdings and historical_data:
             # Update the portfolio based on API data
             update_portfolio(st.session_state.portfolio, live_holdings, historical_data)
-
-            # Save the strategies to cache after updating the portfolio
-            st.session_state.portfolio.save_cache()
             
             # Display the last refresh time
             display_last_refresh_time(st.session_state.portfolio)
@@ -62,5 +59,5 @@ if __name__ == '__main__':
             st.warning("No portfolio data received yet.")
 
     # Automatic refresh after a specified amount of time
-    refresh_interval = 10 # seconds
+    refresh_interval = 120 # seconds
     st_autorefresh(interval=refresh_interval * 1000)

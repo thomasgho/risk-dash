@@ -114,6 +114,7 @@ def display_strategy_summary(portfolio):
     """
     portfolio_weights = portfolio.get_weights()
     portfolio_strategies = portfolio.get_strategies()
+    portfolio_historical = portfolio.get_historical_data()
     
     # Group tickers by strategy
     strategy_groups = {}
@@ -130,22 +131,24 @@ def display_strategy_summary(portfolio):
         else:
             strat_weights = {ticker: portfolio_weights[ticker] for ticker in tickers}
             summed_weight = np.sum(list(strat_weights.values()))
-            volatility = calculate_portfolio_volatility(strat_weights)
-            beta = calculate_portfolio_beta(strat_weights)
+            strat_histories = {ticker: portfolio_historical[ticker] for ticker in tickers}
+            volatility = calculate_portfolio_volatility(strat_weights, strat_histories)
+            beta = calculate_portfolio_beta(strat_weights, strat_histories)
             data.append([strategy, summed_weight, volatility, beta])
 
     # Compute values for the combined 'Run-up' and 'Hedge' strategies
     combined_strategies = ['Run-up', 'Hedge']
     combined_weights = {ticker: portfolio_weights[ticker] for ticker, strategy in portfolio_strategies.items() if strategy in combined_strategies}
     combined_weight = np.sum(list(combined_weights.values()))
-    combined_volatility = calculate_portfolio_volatility(combined_weights)
-    combined_beta = calculate_portfolio_beta(combined_weights)
+    combined_histories = {ticker: portfolio_historical[ticker] for ticker, strategy in portfolio_strategies.items() if strategy in combined_strategies}
+    combined_volatility = calculate_portfolio_volatility(combined_weights, combined_histories)
+    combined_beta = calculate_portfolio_beta(combined_weights, combined_histories)
     data.append(['Run-up Hedged', combined_weight, combined_volatility, combined_beta])
 
     # Compute values for the entire portfolio
     total_weight = np.sum(list(portfolio_weights.values()))
-    total_volatility = calculate_portfolio_volatility(portfolio_weights)
-    total_beta = calculate_portfolio_beta(portfolio_weights)
+    total_volatility = calculate_portfolio_volatility(portfolio_weights, portfolio_historical)
+    total_beta = calculate_portfolio_beta(portfolio_weights, portfolio_historical)
     data.append(['Total', total_weight, total_volatility, total_beta])
     
     # Convert data to DataFrame for easier manipulation

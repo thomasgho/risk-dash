@@ -7,6 +7,9 @@ from ibapi.client import EClient
 from ibapi.contract import Contract
 from ibapi.common import BarData
 
+# TWO THINGS CHANGED;
+# WEIGHT -> USD CONVERSION
+# SPY -> XIU
 
 class IBKRApp(EWrapper, EClient):
     """
@@ -228,9 +231,10 @@ class IBKRApp(EWrapper, EClient):
                 raise ValueError("No portfolio data received from the API yet.")
                 
             weights = {
-                stock: stock_details['market_value'] / self.net_liquidation 
+                stock: stock_details['market_value'] / (self.net_liquidation * 0.0068)
                 for stock, stock_details in self.live_portfolio.items()
             }
+            
         return weights
 
     def get_historical_data(self):
@@ -274,12 +278,43 @@ class IBKRAppSPY(EClient, EWrapper):
     def __init__(self):
         EWrapper.__init__(self)
         EClient.__init__(self, wrapper=self)
+        self.is_connected = False
         
         self.historical_data = {}
         
         self.lock = threading.Lock()
         self.thread = None
 
+    def connectAck(self):
+        """
+        Callback method that is called when a connection to the server is acknowledged.
+
+        This method is part of the EWrapper and is automatically invoked when 
+        the connection to the TWS/IB Gateway has been successfully established.
+
+        Sets the `is_connected` attribute to True.
+
+        Returns
+        -------
+        None
+        """
+        self.is_connected = True
+
+    def connectionClosed(self):
+        """
+        Callback method that is called when the connection to the server is closed.
+
+        This method is part of the EWrapper and is automatically invoked when 
+        the connection to the TWS/IB Gateway is lost or manually closed.
+
+        Sets the `is_connected` attribute to False.
+
+        Returns
+        -------
+        None
+        """
+        self.is_connected = False
+    
     def nextValidId(self, orderId):
         """
         Callback method that is called when the next valid order ID is received.
@@ -291,10 +326,10 @@ class IBKRAppSPY(EClient, EWrapper):
         Send historical data requests for SPY.
         """
         contract = Contract()
-        contract.symbol = "SPY"
+        contract.symbol = "XIU"
         contract.secType = "STK"
         contract.exchange = "SMART"
-        contract.currency = "USD"
+        contract.currency = "CAD"
             
         self.reqHistoricalData(
             reqId=1,
