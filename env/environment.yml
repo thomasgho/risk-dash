@@ -11,5 +11,4 @@ dependencies:
       - streamlit==1.26.0
       - streamlit-extras==0.3.0
       - streamlit-autorefresh==1.0.1
-      - yfinance==0.2.28
 
