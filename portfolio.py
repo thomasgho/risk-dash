@@ -19,7 +19,7 @@ class Portfolio:
         self.portfolio = {}
         self.historical_data = {} 
         self.last_refresh_time = None
-        self.last_saved_time = None
+        self.last_cached_time = None
 
     def add_stock(self, ticker, weight, strategy):
         """
@@ -93,11 +93,11 @@ class Portfolio:
         not exist and will save the strategy data in a file named 
         'strategy.json' within the cache directory.
         """
-        self.last_saved_time = datetime.now()
+        self.last_cached_time = datetime.now()
         
         cache_data = {
             'portfolio': self.portfolio,
-            'last_saved_time': self.last_saved_time.strftime('%Y-%m-%d %H:%M:%S')
+            'last_cached_time': self.last_cached_time.strftime('%Y-%m-%d %H:%M:%S')
         }
         
         if not os.path.exists('cache'):
@@ -119,8 +119,8 @@ class Portfolio:
             with open('cache/strategy.json', 'r') as f:
                 cache_data = json.load(f)
                 self.portfolio = cache_data['portfolio']
-                self.last_saved_time = datetime.strptime(
-                    cache_data['last_saved_time'], '%Y-%m-%d %H:%M:%S')
+                self.last_cached_time = datetime.strptime(
+                    cache_data['last_cached_time'], '%Y-%m-%d %H:%M:%S')
         except FileNotFoundError:
             st.warning('Cache not found. Starting with a clean slate.')
         except json.JSONDecodeError:
@@ -193,7 +193,7 @@ class Portfolio:
         """
         return self.last_refresh_time
 
-    def get_last_saved_time(self):
+    def get_last_cached_time(self):
         """
         Get the timestamp of the last time the portfolio strategies
         were cached.
@@ -204,7 +204,7 @@ class Portfolio:
             The timestamp of the last save if the strategy has been 
             saved, otherwise None.
         """
-        return self.last_saved_time
+        return self.last_cached_time
 
 
 def update_portfolio(portfolio, holdings, historical_data):

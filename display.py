@@ -102,7 +102,7 @@ def display_portfolio(portfolio):
     st.markdown(portfolio_table_html, unsafe_allow_html=True)
 
 
-def display_strategy_summary(portfolio):
+def display_strategy_summary(portfolio, spy_history):
     """
     Displays a table of the portfolio grouped by strategy, including weights, 
     volatility, and beta.
@@ -111,6 +111,8 @@ def display_strategy_summary(portfolio):
     ----------
     portfolio : Portfolio
         An instance of the Portfolio class representing the current portfolio state.
+    spy_history : dict
+        An dictionary containing the historical market data. Used to calculate beta.
     """
     portfolio_weights = portfolio.get_weights()
     portfolio_strategies = portfolio.get_strategies()
@@ -133,7 +135,7 @@ def display_strategy_summary(portfolio):
             summed_weight = np.sum(list(strat_weights.values()))
             strat_histories = {ticker: portfolio_historical[ticker] for ticker in tickers}
             volatility = calculate_portfolio_volatility(strat_weights, strat_histories)
-            beta = calculate_portfolio_beta(strat_weights, strat_histories)
+            beta = calculate_portfolio_beta(strat_weights, strat_histories, spy_history)
             data.append([strategy, summed_weight, volatility, beta])
 
     # Compute values for the combined 'Run-up' and 'Hedge' strategies
@@ -142,13 +144,13 @@ def display_strategy_summary(portfolio):
     combined_weight = np.sum(list(combined_weights.values()))
     combined_histories = {ticker: portfolio_historical[ticker] for ticker, strategy in portfolio_strategies.items() if strategy in combined_strategies}
     combined_volatility = calculate_portfolio_volatility(combined_weights, combined_histories)
-    combined_beta = calculate_portfolio_beta(combined_weights, combined_histories)
+    combined_beta = calculate_portfolio_beta(combined_weights, combined_histories, spy_history)
     data.append(['Run-up Hedged', combined_weight, combined_volatility, combined_beta])
 
     # Compute values for the entire portfolio
     total_weight = np.sum(list(portfolio_weights.values()))
     total_volatility = calculate_portfolio_volatility(portfolio_weights, portfolio_historical)
-    total_beta = calculate_portfolio_beta(portfolio_weights, portfolio_historical)
+    total_beta = calculate_portfolio_beta(portfolio_weights, portfolio_historical, spy_history)
     data.append(['Total', total_weight, total_volatility, total_beta])
     
     # Convert data to DataFrame for easier manipulation

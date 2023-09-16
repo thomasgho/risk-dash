@@ -4,8 +4,6 @@ import pandas as pd
 import streamlit as st
 from datetime import datetime, timedelta
 
-from api_manager import IBKRAppSPY
-
 
 def calculate_portfolio_volatility(portfolio_weights, portfolio_histories):
     """
@@ -49,7 +47,7 @@ def calculate_portfolio_volatility(portfolio_weights, portfolio_histories):
     return portfolio_volatility
 
 
-def calculate_portfolio_beta(portfolio_weights, portfolio_histories):
+def calculate_portfolio_beta(portfolio_weights, portfolio_histories, market_history):
     """
     Calculates the portfolio beta given a portfolio
     of stocks and weights.
@@ -62,6 +60,9 @@ def calculate_portfolio_beta(portfolio_weights, portfolio_histories):
     portfolio_histories : dict
         A dictionary containing stock tickers as keys 
         and their corresponding historical prices as values.
+    market_history : dict
+        A dictionary containing the historical prices of the
+        market (SPY).
 
     Returns
     -------
@@ -78,20 +79,13 @@ def calculate_portfolio_beta(portfolio_weights, portfolio_histories):
     # Format the weights and historical prices 
     weights = np.array(list(portfolio_weights.values()))
     historical_prices = pd.DataFrame(portfolio_histories).sort_index()
-    
-    # Retrieve market historical prices
-    spy_app = IBKRAppSPY()
-    spy_app.start_thread()
-    time.sleep(5)
-    spy_app.thread.join()
-    spy_historical_prices = spy_app.get_historical_data()
-    spy_historical_prices = pd.Series(spy_historical_prices).sort_index()
+    market_historical_prices = pd.Series(market_history).sort_index()
 
     # Calculate the returns
     returns = historical_prices.pct_change()
 
     # Calculate the market returns
-    market_returns = spy_historical_prices.pct_change()
+    market_returns = market_historical_prices.pct_change()
 
     # Calculate the covariance of the returns of each stock with the market
     cov_with_market = returns.apply(lambda x: x.cov(market_returns))

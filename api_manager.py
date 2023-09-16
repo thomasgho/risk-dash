@@ -1,6 +1,7 @@
 import time
 import threading
-from datetime import datetime
+from datetime import datetime, timedelta
+from pytz import timezone
 from typing import Dict
 from ibapi.wrapper import EWrapper
 from ibapi.client import EClient
@@ -39,6 +40,7 @@ class IBKRApp(EWrapper, EClient):
 
         self.historical_data = {}
         self.historical_data_requests = {}
+        self.historical_data_ttl = {}
         self.reqId_counter = 0
         
     def connectAck(self):
@@ -154,6 +156,7 @@ class IBKRApp(EWrapper, EClient):
             if symbol not in self.historical_data:
                 self.historical_data[symbol] = {}
             self.historical_data[symbol][bar.date] = bar.close
+            self.historical_data_ttl[symbol] = datetime.now() + timedelta(hours=4)
 
     def request_historical_data(self, contract):
         """
@@ -171,6 +174,9 @@ class IBKRApp(EWrapper, EClient):
         WHAT_TO_SHOW = "TRADES"
 
         with self.lock:
+            if contract.symbol in self.historical_data_ttl and \
+                datetime.now() < self.historical_data_ttl[symbol]:
+                return
             self.reqId_counter += 1
             reqId = self.reqId_counter
             self.historical_data_requests[reqId] = contract.symbol
@@ -255,7 +261,7 @@ class IBKRApp(EWrapper, EClient):
         with self.lock:
             if not self.historical_data:
                 raise ValueError("No historical data received from the API yet.")
-            return self.historical_data
+            return self.historical_data.copy()
             
 
 class IBKRAppSPY(EClient, EWrapper):
@@ -282,7 +288,7 @@ class IBKRAppSPY(EClient, EWrapper):
         
         self.historical_data = {}
         
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
         self.thread = None
 
     def connectAck(self):
@@ -321,10 +327,36 @@ class IBKRAppSPY(EClient, EWrapper):
         """
         self.request_historical_data()
 
+    def historicalData(self, reqId, bar):
+        """
+        Callback method to populate the historical_data dictionary 
+        with the closing prices.
+        """
+        with self.lock:
+            self.historical_data[bar.date] = bar.close
+
+    def is_time_to_fetch_data(self):
+        """
+        Check if the current time is 4:30pm ET.
+        """
+        et = timezone('US/Eastern')
+        current_et_time = datetime.now(et)
+        target_et_time = current_et_time.replace(hour=16, minute=30, second=0, microsecond=0)
+        
+        # Window of a few minutes for fetching the data
+        start_time = target_et_time - timedelta(minutes=10)
+        end_time = target_et_time + timedelta(minutes=10)
+        
+        return start_time <= current_et_time <= end_time
+    
     def request_historical_data(self):
         """
         Send historical data requests for SPY.
         """
+        with self.lock:
+            if not self.is_time_to_fetch_data() and self.historical_data:
+                return
+        
         contract = Contract()
         contract.symbol = "XIU"
         contract.secType = "STK"
@@ -343,21 +375,6 @@ class IBKRAppSPY(EClient, EWrapper):
             keepUpToDate=False,
             chartOptions=[]
         )
-
-    def historicalData(self, reqId, bar):
-        """
-        Callback method to populate the historical_data dictionary 
-        with the closing prices.
-        """
-        with self.lock:
-            self.historical_data[bar.date] = bar.close
-
-    def historicalDataEnd(self, reqId: int, start: str, end: str):
-        """
-        Callback method that is called when historical data for a 
-        request is finished.
-        """
-        self.disconnect()
 
     def run_app(self):
         """
@@ -395,6 +412,8 @@ class IBKRAppSPY(EClient, EWrapper):
             Dictionary with dates as keys and closing prices as values.
         """
         with self.lock:
+            if not self.historical_data:
+                raise ValueError("No SPY historical data received from the API yet.")
             return self.historical_data.copy()
 
 
@@ -416,7 +435,6 @@ def test():
         historical_data = app.get_historical_data()
         
         # Get SPY data
-        spy_app.thread.join()
         spy_historical_data = spy_app.get_historical_data()
         
         print("Live Portfolio Updates:")
@@ -430,6 +448,7 @@ def test():
 
     finally:
         app.stop_thread()
+        spy_app.stop_thread()
 
 
 if __name__ == "__main__":
