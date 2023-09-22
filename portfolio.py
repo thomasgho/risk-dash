@@ -331,4 +331,7 @@ def manage_portfolio(portfolio):
             st.sidebar.success(
                 f"{selected_ticker} strategy updated to {new_strategy}."
             )
+        
+            # Save the strategies to cache
+            portfolio.save_cache()        
           
