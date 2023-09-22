@@ -7,67 +7,81 @@ from display import display_strategy_summary, display_portfolio, display_last_re
 from api_manager import IBKRApp, IBKRAppSPY
 
 
+# Cache portfolio between page refreshes
+@st.cache_data
+def init_portfolio(ttl=None, show_spinner=False):
+    portfolio = Portfolio()
+    portfolio.load_cache()
+    return portfolio
+
+# Cache API instance between page refreshes
+@st.cache_resource
+def init_ibkr_app(ttl=None):
+    ibkr_app = IBKRApp()
+    ibkr_app.start_thread()
+    while not ibkr_app.is_connected:
+        time.sleep(1)
+    return ibkr_app
+
+# Cache SPY API instance between page refreshes
+@st.cache_resource
+def init_ibkr_app_spy(ttl=None):
+    ibkr_app_spy = IBKRAppSPY()
+    ibkr_app_spy.start_thread()
+    while not ibkr_app_spy.is_connected:
+        time.sleep(1)
+    return ibkr_app_spy
+
+
+# Dashboard
 if __name__ == '__main__': 
     st.title('Portfolio Summary')
-
-    # Initialize the connection message 
-    ibkr_connection_message = None 
-
-    # Retrieve or initialize the portfolio object from the session state
-    if 'portfolio' not in st.session_state:
-        st.session_state.portfolio = Portfolio()
-        st.session_state.portfolio.load_cache()
-
-    # Instantiate and start the API app if not already in the session state
-    if 'ibkr_app' not in st.session_state:
-        ibkr_connection_message = st.info("Connecting to IBKR...")
-        st.session_state.ibkr_app = IBKRApp()
-        st.session_state.ibkr_app.start_thread()
-
-        # Wait until connected
-        while not st.session_state.ibkr_app.is_connected:
-            time.sleep(1)
-
-    # Instantiate and start the SPY API app if not already in the session state
-    if 'ibkr_app_spy' not in st.session_state:
-        st.session_state.ibkr_app_spy = IBKRAppSPY()
-        st.session_state.ibkr_app_spy.start_thread()
-
-        # Wait until connected
-        while not st.session_state.ibkr_app_spy.is_connected:
-            time.sleep(1)
     
+    # Instantiate and load cache for the portfolio
+    portfolio = init_portfolio()
+    
+    # Instantiate and start the API service
+    ibkr_app = init_ibkr_app()
+    ibkr_app_spy = init_ibkr_app_spy()
+
+    # Display messagae if it's the first load
+    first_load_placeholder = st.empty()
+    if 'first_load' not in st.session_state:
+        st.session_state.first_load = True
+        first_load_placeholder.info("Connecting to IBKR...")
+    else:
+        st.session_state.first_load = False
+
     # Check if IBKR connected
-    if st.session_state.ibkr_app.is_connected and st.session_state.ibkr_app_spy.is_connected:
+    if ibkr_app.is_connected and ibkr_app_spy.is_connected:
         # Give some time for apps to start fetching updates
-        time.sleep(30)
-        
-        # Clear the connection message
-        if ibkr_connection_message:
-            ibkr_connection_message.empty()
+        time.sleep(20)
 
         # Get holdings and historical data
-        live_holdings = st.session_state.ibkr_app.get_live_portfolio()
-        historical_data = st.session_state.ibkr_app.get_historical_data()
-        historical_data_spy = st.session_state.ibkr_app_spy.get_historical_data()
+        live_holdings = ibkr_app.get_live_portfolio()
+        historical_data = ibkr_app.get_historical_data()
+        historical_data_spy = ibkr_app_spy.get_historical_data()
 
         # Make sure there are holdings before proceeding
         if live_holdings and historical_data and historical_data_spy:
+            # Remove connection message
+            first_load_placeholder.empty()
+            
             # Update the portfolio based on API data
-            update_portfolio(st.session_state.portfolio, live_holdings, historical_data)
+            update_portfolio(portfolio, live_holdings, historical_data)
             
             # Display the last refresh time
-            display_last_refresh_time(st.session_state.portfolio)
+            display_last_refresh_time(portfolio)
 
             # Allow management of strategies through a sidebar
-            manage_portfolio(st.session_state.portfolio)
+            manage_portfolio(portfolio)
 
             # Display the current portfolio
-            display_strategy_summary(st.session_state.portfolio, historical_data_spy)
+            display_strategy_summary(portfolio, historical_data_spy)
 
         else:
             st.warning("No portfolio data received yet.")
 
     # Automatic refresh after a specified amount of time
-    refresh_interval = 120 # seconds
+    refresh_interval = 25 # seconds
     st_autorefresh(interval=refresh_interval * 1000)
