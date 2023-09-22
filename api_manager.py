@@ -8,9 +8,6 @@ from ibapi.client import EClient
 from ibapi.contract import Contract
 from ibapi.common import BarData
 
-# TWO THINGS CHANGED;
-# WEIGHT -> USD CONVERSION
-# SPY -> XIU
 
 class IBKRApp(EWrapper, EClient):
     """
@@ -29,18 +26,22 @@ class IBKRApp(EWrapper, EClient):
     def __init__(self):
         EClient.__init__(self, self)
         self.is_connected = False
-        
+
         self.thread = None
         self.lock = threading.RLock()
-        
+
         self.managed_accounts = []
         
         self.live_portfolio = {}
         self.net_liquidation = 0
 
+        self.currency_rates = {}
+        self.forex_data_requests = {}
+        
         self.historical_data = {}
         self.historical_data_requests = {}
         self.historical_data_ttl = {}
+        
         self.reqId_counter = 0
         
     def connectAck(self):
@@ -116,6 +117,10 @@ class IBKRApp(EWrapper, EClient):
                     'market_value': marketValue,
                     'currency': contract.currency,
                 }     
+
+        if contract.currency != "USD":
+            self.request_forex_data(contract.currency)        
+        
         self.request_historical_data(contract)
     
     def updateAccountValue(self, key, val, currency, accountName):
@@ -175,7 +180,7 @@ class IBKRApp(EWrapper, EClient):
 
         with self.lock:
             if contract.symbol in self.historical_data_ttl and \
-                datetime.now() < self.historical_data_ttl[symbol]:
+                datetime.now() < self.historical_data_ttl[contract.symbol]:
                 return
             self.reqId_counter += 1
             reqId = self.reqId_counter
@@ -193,6 +198,32 @@ class IBKRApp(EWrapper, EClient):
             keepUpToDate=False,
             chartOptions=[],
         )
+    
+    def request_forex_data(self, currency):
+        """
+        Request real-time forex data for currency conversion.
+        """
+        forex_contract = Contract()
+        forex_contract.symbol = currency
+        forex_contract.secType = "CASH"
+        forex_contract.exchange = "IDEALPRO"
+        forex_contract.currency = "USD"
+        
+        with self.lock:
+            self.reqId_counter += 1
+            reqId = self.reqId_counter
+            self.forex_data_requests[reqId] = currency
+        
+        self.reqMktData(reqId, forex_contract, "", False, False, [])
+
+    def tickPrice(self, reqId, tickType, price, attrib):
+        """
+        Callback for live market data. This is where 
+        forex rates will be saved.
+        """
+        currency = self.forex_data_requests.get(reqId, None)
+        if currency:
+            self.currency_rates[currency] = price
     
     def run_app(self):
         """
@@ -231,13 +262,14 @@ class IBKRApp(EWrapper, EClient):
         dict
             Dictionary containing live portfolio updates indexed by 
             stock symbol.
-        """
+        """       
         with self.lock:
             if not self.live_portfolio:
                 raise ValueError("No portfolio data received from the API yet.")
-                
+            
             weights = {
-                stock: stock_details['market_value'] / (self.net_liquidation * 0.0068)
+                stock: (stock_details['market_value'] * self.currency_rates.get(stock_details['currency'], 1)) /
+                        (self.net_liquidation)
                 for stock, stock_details in self.live_portfolio.items()
             }
             
@@ -358,10 +390,10 @@ class IBKRAppSPY(EClient, EWrapper):
                 return
         
         contract = Contract()
-        contract.symbol = "XIU"
+        contract.symbol = "SPY"
         contract.secType = "STK"
         contract.exchange = "SMART"
-        contract.currency = "CAD"
+        contract.currency = "USD"
             
         self.reqHistoricalData(
             reqId=1,
