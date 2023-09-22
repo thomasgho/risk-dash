@@ -3,9 +3,9 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - numpy
-  - matplotlib
-  - jupyterlab
+  - numpy=1.25
+  - pandas=2.0.0
+  - jupyterlab=4.0.5
   - pip
   - pip:
       - streamlit==1.26.0

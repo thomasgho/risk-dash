@@ -11,6 +11,7 @@ RUN apt-get update \
         curl \
         git \
         zip \
+        ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get autoremove -y \
     && apt-get clean 
